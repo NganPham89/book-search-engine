@@ -6,13 +6,19 @@ const resolvers = {
     Query: {
         me: async (parent, args, context) => {
             if (context.user) {
-                return User.findOne({ _id: context.user._id }).populate("savedBooks");
+                const data = await User.findOne({ _id: context.user._id });
+                return data;
             }
             throw new AuthenticationError("You need to be logged in!");
         }
     },
 
     Mutation: {
+        addUser: async (parent, { username, email, password }) => {
+            const user = await User.create({ username, email, password });
+            const token = signToken(user);
+            return { token, user };
+        },
         login: async (parent, { email, password }) => {
             const user = await User.findOne({ email });
 
@@ -30,33 +36,33 @@ const resolvers = {
 
             return { token, user };
         },
-        saveBook: async (parent, { ...saveBook }, context) => {
+        saveBook: async (parent, { newBook }, context) => {
             if (context.user) {
-                await User.findOneAndUpdate(
+                const newUserData = await User.findOneAndUpdate(
                     { _id: context.user._id },
                     {
                         $addToSet: {
-                            savedBooks: { ...saveBook }
+                            savedBooks: newBook 
                         }
                     },
-                    { new: true, runValidators: true }
+                    { new: true }
                 )
+                return newUserData;
             }
             throw new AuthenticationError("You need to be logged in!");
         },
         deleteBook: async (parent, { bookId }, context) => {
             if (context.user) {
-                await User.findOneAndUpdate(
+                const newUserData = await User.findOneAndUpdate(
                     { _id: context.user._id },
                     {
                         $pull: {
-                            savedBooks: {
-                                bookId: bookId
-                            }
+                            savedBooks: { bookId }
                         }
                     },
-                    { new: true },
+                    { new: true, runValidators: true },
                 )
+                return newUserData;
             }
             throw new AuthenticationError("You need to be logged in!");
         }
